@@ -572,7 +572,7 @@ void consultar_valor_pos(MATRIZ_PTR ListaMatriz, CABECALHO_PTR cabecalho)
 	if (Elemento == NULL)
 		printf("O valor da posicao (%d,%d) e: 0\n", i, j);
 	else
-		printf("O valor da posicao (%d,%d) ss e: %.4lf\n", i, j, Elemento->data);
+		printf("O valor da posicao (%d,%d) e: %.4lf\n", i, j, Elemento->data);
 
 	WaitENTER();
 	return;
