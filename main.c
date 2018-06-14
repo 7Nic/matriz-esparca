@@ -524,6 +524,9 @@ void splash_screen()
 	printf("|   __|     \\   \\    |   ___/  /  /_\\  \\   |      /        \\   \\      /  /_\\  \\ \n");
 	printf("|  |____.----)   |   |  |     /  _____  \\  |  |\\  \\----.----)   |    /  _____  \\ \n");
 	printf("|_______|_______/    | _|    /__/     \\__\\ | _| `._____|_______/    /__/     \\__\\ \n");
+	printf("\n\n\nCriado por: Gabriel Nicolau e Vinicius Ribeiro\n");
+	
+	
 }
 
 //Le um inteiro do Stdin
