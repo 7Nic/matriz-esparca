@@ -58,7 +58,7 @@ void InsereElemento(MATRIZ_PTR *ListaMatriz, MATRIZ_PTR NovoElemento);
 
 
 //---------------------------------------DETERMINANTE---------------------------------------//
-float Determinante(MATRIZ_PTR *ListaMatriz, CABECALHO_PTR cabecalho);
+float Determinante(MATRIZ_PTR *ListaMatriz, CABECALHO_PTR cabecalho, int passo_a_passo);
 
 void TrocaLinha(MATRIZ_PTR *ListaMatriz, int Linha_1, int Linha_2);
 
@@ -69,9 +69,9 @@ void SomaLinhas(MATRIZ_PTR *ListaMatriz, MATRIZ_PTR Linha, MATRIZ_PTR Inicio);
 //Vai pegando todos os valores da diagonal principal, e retorna o resultado da multiplicacao entre eles
 double Multiplicacao_Diagonal(MATRIZ_PTR ListaMatriz, int N_Linhas);
 
-MATRIZ_PTR Elemento_diagonal_gauss(MATRIZ_PTR *ListaMatriz, CABECALHO_PTR cabecalho, int linha_atual, double* Multiplicador);
+MATRIZ_PTR Elemento_diagonal_gauss(MATRIZ_PTR *ListaMatriz, CABECALHO_PTR cabecalho, int linha_atual, double* Multiplicador, int passo_a_passo);
 
-float metodoGauss(MATRIZ_PTR *ListaMatriz, CABECALHO_PTR cabecalho, int linha_atual, double Multiplicador);
+float metodoGauss(MATRIZ_PTR *ListaMatriz, CABECALHO_PTR cabecalho, int linha_atual, double Multiplicador, int passo_a_passo);
 
 
 
@@ -85,11 +85,11 @@ double EntradaLimitadaDouble(double min, double max);
 bool SaoIguais(double N1, double N2);
 
 //Le um int do Stdin
-//Retorna false quando nao foi poss�vel ler nenhum n�mero do buffer, e retorna true quando leu
+//Retorna false quando nao foi possï¿½vel ler nenhum nï¿½mero do buffer, e retorna true quando leu
 int ReadInt(int *numero);
 
 //Le um float do Stdin
-//Retorna false quando nao foi poss�vel ler nenhum n�mero do buffer, e retorna true quando leu
+//Retorna false quando nao foi possï¿½vel ler nenhum nï¿½mero do buffer, e retorna true quando leu
 int ReadDouble(double *numero);
 
 
@@ -100,6 +100,9 @@ void MenuSobre();
 
 //Espera o usuario pressionar ENTER para continuar o programa
 void WaitENTER();
+
+//Faz o mesmo que a função acima, mas não para retornar ao menu principal, apenas para prosseguir com a mesma operação
+void WaitPROSSEGUIR();
 
 //Imprime /n suficientes para "limpar" a tela
 void Limpa_tela();
@@ -116,14 +119,13 @@ void Imprime(MATRIZ_PTR ListaMatriz, CABECALHO_PTR cabecalho);
 //------------------------------------------MAIN------------------------------------------//
 int main()
 {
-	//setlocale(LC_ALL, "Portuguese");
 	MATRIZ_PTR ListaMatriz = NULL;
 	CABECALHO_PTR cabecalho = (CABECALHO_PTR)malloc(sizeof(CABECALHO));
 	cabecalho->N_Linhas = 0;
 	cabecalho->N_Colunas = 0;
 
 	splash_screen();
-	WaitENTER();
+	WaitPROSSEGUIR();
 
 	Limpa_tela();
 	printf("                             AVISO!\n");
@@ -135,13 +137,10 @@ int main()
 
 	criar_matriz(&ListaMatriz, &cabecalho);
 	Limpa_tela();
-	//printf("%lf", Determinante(&ListaMatriz, cabecalho));
-	WaitENTER();
 	int acao;
 	while (true && !false)
 	{
 		acao = menu_principal();
-		//Imprime(ListaMatriz, cabecalho);
 		switch (acao)
 		{
 		case 1:
@@ -169,8 +168,37 @@ int main()
 			break;
 
 		case 7:
-			return 0;
+			Limpa_tela();
+			printf("Voce escolheu a opcao de calcular o determinante.\n");
+			printf("Caso sua matriz seja quadrada e esteja entre 3x3 e 13x13, sera possivel acompanhar o passo a passo.\n");
+			printf("Deseja acompanhar o passo a passo do metodo? 1 - SIM   0 - NAO\n");
+			int passo_a_passo = EntradaLimitadaInt(0, 1);
+			if (passo_a_passo == 1 && cabecalho->N_Linhas > 13 && cabecalho->N_Colunas>13){
+                printf("A sua matriz e muito grande para ser impressa na tela. Nao sera possivel observar o passo a passo.\n");
+                WaitPROSSEGUIR();
+                passo_a_passo = 0;
+			}
+			if (passo_a_passo == 1 && cabecalho->N_Linhas <= 2 && cabecalho->N_Colunas<=2){
+                printf("Em matrizes 1x1 e 2x2 nao se utiliza o metodo de Gauss, portanto nao ha passo a passo para ser exibido.\n");
+                WaitPROSSEGUIR();
+                passo_a_passo = 0;
+			}
+
+            if (passo_a_passo == 1){
+                printf("Matriz original\n");
+                Imprime(ListaMatriz, cabecalho);
+                WaitPROSSEGUIR();
+            }
+			double det = Determinante(&ListaMatriz, cabecalho, passo_a_passo);
+			if (det == ERRO) break;
+
+			printf("O determinante da sua matriz e: %lf\n", det);
+			WaitENTER();
 			break;
+
+        case 8:
+            return 0;
+            break;
 
 		default:
 			printf("Valor invalido.\n");
@@ -313,7 +341,6 @@ void consultar_valor_pos(MATRIZ_PTR ListaMatriz, CABECALHO_PTR cabecalho){
 	}
 
 	int i = 0, j = 0;
-	double data;
 	printf("Digite o valor da linha que deseja consultar: ");
 	i = EntradaLimitadaInt(0, cabecalho->N_Linhas - 1);
 
@@ -404,17 +431,17 @@ void SomaLinhas(MATRIZ_PTR *ListaMatriz, MATRIZ_PTR Linha, MATRIZ_PTR Inicio){
 	double fator = (Linha->data/Inicio->data) * (-1);
 
 	//Soma a 1º linha na 2º linha
-	//A cada elemento da 1º linha, pega o correspondente (msm coluna) da 2º linha e faz a soma
+	//A cada elemento da 1Âº linha, pega o correspondente (msm coluna) da 2Âº linha e faz a soma
 	while(Inicio != NULL && Inicio->i == i){
-		//Enquanto a coluna do elemento da 2º linha estiver antes da coluna do elemento da 1º, vai pegando o proximo valor da 2º
+		//Enquanto a coluna do elemento da 2Âº linha estiver antes da coluna do elemento da 1Âº, vai pegando o proximo valor da 2Âº
 		while(atual != NULL && atual->j < Inicio->j && atual->i == Linha->i)
 			atual = atual->prox;
 
-		//Se por acaso achar na 2º linha um elemento com a mesma coluna da 1º q está sendo analisada, soma os valores
+		//Se por acaso achar na 2Âº linha um elemento com a mesma coluna da 1Âº q estÃ¡ sendo analisada, soma os valores
 		if(atual != NULL && atual->j == Inicio->j && atual->i == Linha->i)
 			atual->data += fator*Inicio->data;
 
-		//Se a 2º nao tem um elemento na coluna do elemento da 1º linha, cria um novo elemento na segunda linha com o valor da soma
+		//Se a 2Âº nao tem um elemento na coluna do elemento da 1Âº linha, cria um novo elemento na segunda linha com o valor da soma
 		else{
 			Novo = (MATRIZ_PTR)malloc(sizeof(MATRIZ));
 			Novo->data = fator*Inicio->data;
@@ -434,40 +461,49 @@ double Multiplicacao_Diagonal(MATRIZ_PTR ListaMatriz, int N_Linhas){
 	MATRIZ_PTR atual = ListaMatriz;
 	for(i = 0; i < N_Linhas; i++){
 		atual = BuscaElemento(atual, i, i);
-		//Se o elemento procurado é 0, entao o resultado da multiplicacao é 0
+		//Se o elemento procurado Ã© 0, entao o resultado da multiplicacao Ã© 0
 		if(atual == NULL)
 			return 0;
-		
+
 		Resul *= atual->data;
 	}
 	return Resul;
 }
 
-MATRIZ_PTR Elemento_diagonal_gauss(MATRIZ_PTR *ListaMatriz, CABECALHO_PTR cabecalho, int linha_atual, double* Multiplicador){
+MATRIZ_PTR Elemento_diagonal_gauss(MATRIZ_PTR *ListaMatriz, CABECALHO_PTR cabecalho, int linha_atual, double* Multiplicador, int passo_a_passo){
 	int cont;
-	MATRIZ_PTR Temp;
 	MATRIZ_PTR Inicio;
 	int coluna_atual = linha_atual;
 	Inicio = BuscaElemento(*ListaMatriz, linha_atual, coluna_atual);
 	if(Inicio != NULL)
 		return Inicio;
-	
+
 	Inicio = NULL;
 	for(cont = linha_atual + 1; cont < cabecalho->N_Colunas && Inicio == NULL; cont++)
 		Inicio = BuscaElemento(*ListaMatriz, cont, coluna_atual);
-		
+
 	if(Inicio == NULL)
 		return NULL;
-	
+
 	(*Multiplicador) *= -1;
-	TrocaLinha(ListaMatriz, linha_atual, Inicio->i);
+
+
+    //PASSO A PASSO
+    if (passo_a_passo == 1){
+        printf("Trocando linha %d com a linha %d\n", linha_atual, Inicio->i);
+        TrocaLinha(ListaMatriz, linha_atual, Inicio->i);
+        Imprime(*ListaMatriz, cabecalho);
+        printf("\n\n");
+        WaitPROSSEGUIR();
+    } else
+        TrocaLinha(ListaMatriz, linha_atual, Inicio->i);
+
 	Inicio = BuscaElemento(*ListaMatriz, linha_atual, linha_atual);
 
 	return Inicio;
 }
 
-float metodoGauss(MATRIZ_PTR *ListaMatriz, CABECALHO_PTR cabecalho, int linha_atual, double Multiplicador){
-	//Se a matriz estiver fazia, entao a determinante é 0 (necessario aqui?)
+float metodoGauss(MATRIZ_PTR *ListaMatriz, CABECALHO_PTR cabecalho, int linha_atual, double Multiplicador, int passo_a_passo){
 	if (ListaMatriz == NULL)
 		return 0;
 
@@ -475,28 +511,48 @@ float metodoGauss(MATRIZ_PTR *ListaMatriz, CABECALHO_PTR cabecalho, int linha_at
 
 	MATRIZ_PTR Inicio;
 	int coluna_atual = linha_atual;
-	Inicio = Elemento_diagonal_gauss(ListaMatriz, cabecalho, linha_atual, &Multiplicador);
+	Inicio = Elemento_diagonal_gauss(ListaMatriz, cabecalho, linha_atual, &Multiplicador, passo_a_passo);
 	if(Inicio == NULL)
 		return 0;
 
 	temp = Inicio->prox;
 
-	double resto, fator;
+	double resto;
 	while(temp != NULL){
 		if(temp->j == coluna_atual && !SaoIguais(temp->data, 0)){
 			resto = fmod(temp->data, Inicio->data);
 			if(!SaoIguais(resto, 0)){
 				multiplicaLinha(temp, Inicio->data);
 				Multiplicador *= Inicio->data;
+
+                 if (passo_a_passo == 1){
+                    //PASSO A PASSO
+                    printf("Multiplicando a linha %d, por %.2lf\n", temp->i, Inicio->data);
+                    Imprime(*ListaMatriz, cabecalho);
+                    printf("\n\n");
+                    WaitPROSSEGUIR();
+                }
+
 			}
-			
-			SomaLinhas(ListaMatriz, temp,  Inicio);
+
+			if (passo_a_passo == 1){
+                //PASSO A PASSO
+                printf("Somando na linha %d, a linha %d multiplicada por %.2lf\n", temp->i, Inicio->i, -temp->data/Inicio->data);
+                SomaLinhas(ListaMatriz, temp,  Inicio);
+                Imprime(*ListaMatriz, cabecalho);
+                printf("\n\n");
+                WaitPROSSEGUIR();
+			} else {
+                SomaLinhas(ListaMatriz, temp,  Inicio);
+			}
+
+
 		}
 		temp = temp->prox;
 	}
-	
+
 	if(linha_atual < cabecalho->N_Linhas - 2)
-		return metodoGauss(ListaMatriz, cabecalho, linha_atual+1, Multiplicador);
+		return metodoGauss(ListaMatriz, cabecalho, linha_atual+1, Multiplicador, passo_a_passo);
 
 	double Multiplicacao = Multiplicacao_Diagonal(*ListaMatriz, cabecalho->N_Linhas);
 	return Multiplicacao/Multiplicador;
@@ -523,7 +579,7 @@ void CopiaMatriz(MATRIZ_PTR Input, MATRIZ_PTR *Output){
 	}
 }
 
-float Determinante(MATRIZ_PTR *ListaMatriz, CABECALHO_PTR cabecalho){
+float Determinante(MATRIZ_PTR *ListaMatriz, CABECALHO_PTR cabecalho, int passo_a_passo){
 	if (cabecalho->N_Colunas == 0 || cabecalho->N_Linhas == 0){
 		printf("Essa matriz esta vazia.\n");
 		WaitENTER();
@@ -531,28 +587,30 @@ float Determinante(MATRIZ_PTR *ListaMatriz, CABECALHO_PTR cabecalho){
 	}
 
 	if (cabecalho->N_Colunas != cabecalho->N_Linhas){
-		printf("Essa matriz não é quadrada, não existe determinante.\n");
+		printf("Essa matriz nao e quadrada, nao existe determinante.\n");
 		WaitENTER();
 		return ERRO;
 	}
 
-	int i;
 	double valor;
-	MATRIZ_PTR Elemento = NULL;
 	if (cabecalho->N_Linhas == 1)
-		return BuscaValor(*ListaMatriz, 1, 1);
-	
+		return BuscaValor(*ListaMatriz, 0, 0);
+
 	if (cabecalho->N_Linhas == 2){
-		valor =  BuscaValor(*ListaMatriz, 1, 1) * BuscaValor(*ListaMatriz, 2, 2);
-		valor -= BuscaValor(*ListaMatriz, 1, 2) * BuscaValor(*ListaMatriz, 2, 1);
+		valor =  BuscaValor(*ListaMatriz, 0, 0) * BuscaValor(*ListaMatriz, 1, 1);
+		valor -= BuscaValor(*ListaMatriz, 0, 1) * BuscaValor(*ListaMatriz, 1, 0);
 		return valor;
 	}
 
 	double Resultado;
 	MATRIZ_PTR Copia;
 	CopiaMatriz(*ListaMatriz, &Copia);
-	Resultado =  metodoGauss(&Copia, cabecalho, 0, 1);
+	Resultado =  metodoGauss(&Copia, cabecalho, 0, 1, passo_a_passo);
 	Exclui_Matriz(&Copia);
+	if (passo_a_passo == 1){
+                printf("Pode-se observar que aqui possuimos uma matriz triangular, em que os elementos abaixo da diagonal principal tem valor 0\n");
+                printf("Assim, o valor do determinante e o produto dos elementos da diagonal principal\n\n\n");
+			}
 	return Resultado;
 }
 
@@ -566,10 +624,10 @@ void MenuSobre(){
 	printf("                    Gerenciador de notas\n");
 	printf("                       Sobre o projeto       \n\n\n\n\n\n");
 	printf("        Programa para gerenciamento de matrizes esparsas\n\n");
-	printf("             As posicões vazias sao tomadas como contendo o valor 0\n\n");
+	printf("      As posicoes vazias sao tomadas como contendo o valor 0\n\n");
 	printf(" Projeto da disciplina de Introducao a Ciencia da Computacao I\n\n");
 	printf("                 Universidade de Sao Paulo\n\n\n");
-	printf("\n\n   Pressione ENTER para seguir para as informacões dos autores\n\n");
+	printf("\n\n   Pressione ENTER para seguir para as informacoes dos autores\n\n");
 	char c = getchar();
 	while (c != '\n')
 		c = getchar();
@@ -578,16 +636,23 @@ void MenuSobre(){
 	printf("                         Criado por:\n");
 	printf("                       Vinicius Ribeiro\n");
 	printf("                       vinicius.r@usp.br\n");
-	printf("                 github.com/vinicius-r-silva\n\n");
+	printf("                  github.com/vinicius-r-silva\n\n");
 	printf("                             e\n\n");
 	printf("                  Gabriel Santos Nicolau:\n");
 	printf("                gabriel.nicolau97@hotmail.com\n");
-	printf("                     github.com/7Nic\n\n");
+	printf("                      github.com/7Nic\n\n");
 	WaitENTER();
 }
 
 void WaitENTER(){
 	printf("\n\n        Pressione ENTER para voltar ao menu principal\n\n");
+	char c = getchar();
+	while (c != '\n')
+		c = getchar();
+}
+
+void WaitPROSSEGUIR(){
+	printf("\n\n        Pressione ENTER para prosseguir\n\n");
 	char c = getchar();
 	while (c != '\n')
 		c = getchar();
@@ -605,9 +670,9 @@ int menu_principal(){
 	printf("1 - Criar matriz                              2 - Consultar valor de uma posicao\n");
 	printf("3 - Consultar valor soma de linha             4 - Consultar valor de soma de coluna\n");
 	printf("5 - Atribuir valor a uma posicao              6 - Sobre\n");
-	printf("7 - Sair\n\n\n\n\n\n");
+	printf("7 - Calcular o determinante                   8 - Sair\n\n\n\n\n\n");
 	printf("Digite a opcao desejada: ");
-	return EntradaLimitadaInt(1, 7);
+	return EntradaLimitadaInt(1, 8);
 }
 
 void splash_screen(){
@@ -624,6 +689,7 @@ void splash_screen(){
 	printf("|   __|     \\   \\    |   ___/  /  /_\\  \\   |      /        \\   \\      /  /_\\  \\ \n");
 	printf("|  |____.----)   |   |  |     /  _____  \\  |  |\\  \\----.----)   |    /  _____  \\ \n");
 	printf("|_______|_______/    | _|    /__/     \\__\\ | _| `._____|_______/    /__/     \\__\\ \n");
+	printf("\n\n\n\nCriado por: Gabriel Nicolau e Vinicius Ribeiro");
 }
 
 
@@ -633,7 +699,7 @@ int EntradaLimitadaInt(int min, int max){
 	while (true && !false){
 		while(!ReadInt(&c))
 			printf("Entrada invalida. Digite novamente: ");
-			
+
 		if(c < min || c > max)
 			printf("Valor invalido. Digite algo entre %d e %d. \nDigite novamente: ", min, max);
 		else
@@ -667,13 +733,13 @@ bool SaoIguais(double N1, double N2){
 
 
 //Le um inteiro do Stdin
-//certifica que ser� lido somente numeros do stdin, nao sofre do 'bug' de ter lixo no buffer
-//Retorna false quando nao foi poss�vel ler nenhum n�mero do buffer, e retorna true quando leu
+//certifica que serï¿½ lido somente numeros do stdin, nao sofre do 'bug' de ter lixo no buffer
+//Retorna false quando nao foi possï¿½vel ler nenhum nï¿½mero do buffer, e retorna true quando leu
 //Certifica que deixa o buffer limpo quando termina de ler
 int ReadInt(int *numero){
 	bool negativo = false;
 
-	//Limpa o buffer inicial at� encontrar um numero ou ate o buffer acabar
+	//Limpa o buffer inicial atï¿½ encontrar um numero ou ate o buffer acabar
 	char c = getchar();
 	if (c == '\n' || c == '\0')
 		c = getchar();
@@ -711,14 +777,14 @@ int ReadInt(int *numero){
 }
 
 //Le um float do Stdin
-//certifica que ser� lido somente numeros do stdin, nao sofre do 'bug' de ter lixo no buffer
-//Retorna false quando nao foi poss�vel ler nenhum n�mero do buffer, e retorna true quando leu
+//certifica que será lido somente numeros do stdin, nao sofre do 'bug' de ter lixo no buffer
+//Retorna false quando nao foi possï¿½vel ler nenhum nï¿½mero do buffer, e retorna true quando leu
 //Certifica que deixa o buffer limpo quando termina de ler
 int ReadDouble(double *numero){
 	int i;
 	bool negativo = false;
 
-	//Limpa o buffer inicial at� encontrar um numero ou ate o buffer acabar
+	//Limpa o buffer inicial atï¿½ encontrar um numero ou ate o buffer acabar
 	char c = getchar();
 	if (c == '\n' || c == '\0')
 		c = getchar();
@@ -768,32 +834,29 @@ int ReadDouble(double *numero){
 
 
 
-void Imprime(MATRIZ_PTR ListaMatriz, CABECALHO_PTR cabecalho){ 
-	MATRIZ_PTR temp = ListaMatriz;
-	while(temp != NULL){
-		printf("%.0lf (%d,%d) -> ", temp->data, temp->i, temp->j);
-		temp = temp->prox;
-	}
-	printf("\n\n");
-
-
+void Imprime(MATRIZ_PTR ListaMatriz, CABECALHO_PTR cabecalho){
 	int Last_i = 0, Last_j = 0;
 	int i, j;
-	while(ListaMatriz != NULL){		
+	while(ListaMatriz != NULL){
 		while(Last_i != ListaMatriz->i){
 			for(j = Last_j; j < cabecalho->N_Colunas; j++)
-				printf("0  ");
+				printf(" 000.0  ");
 			Last_j = 0;
 			Last_i++;
 			printf("\n");
 		}
-		
+
 		for(j = Last_j; j < ListaMatriz->j; j++){
-			printf("0  ");
+			printf(" 000.0  ");
 			Last_j++;
 		}
 
-		printf("%.0lf  ", ListaMatriz->data);
+		if(SaoIguais(ListaMatriz->data, 0))
+			printf(" 000.0  ");
+		else if (ListaMatriz->data < 0)
+			printf("%06.1f  ", ListaMatriz->data);
+		else
+			printf(" %05.1f  ", ListaMatriz->data);
 		Last_i = ListaMatriz->i;
 		Last_j = ListaMatriz->j;
 		Last_j++;
@@ -802,17 +865,17 @@ void Imprime(MATRIZ_PTR ListaMatriz, CABECALHO_PTR cabecalho){
 
 
 	for (j = Last_j; j < cabecalho->N_Colunas; j++)
-		printf("0  ");
+		printf(" 000.0  ");
 
 	for(i = Last_i; i < cabecalho->N_Linhas - 1; i++){
 		printf("\n");
 		for(j = 0; j < cabecalho->N_Colunas; j++)
-			printf("0  ");
+			printf(" 000.0  ");
 	}
 	printf("\n\n");
 }
 
-//Refazer, muito ilegivel (mas funciona)
+
 void TrocaLinha(MATRIZ_PTR *ListaMatriz, int Linha_1, int Linha_2){
 	if(Linha_1 >= Linha_2)
 		return;
@@ -833,7 +896,7 @@ void TrocaLinha(MATRIZ_PTR *ListaMatriz, int Linha_1, int Linha_2){
 	while(temp != NULL && temp->i == Linha_1){
 		Fim1 = temp;
 		temp->i = Linha_2;
-		temp = temp->prox;	
+		temp = temp->prox;
 	}
 	if(Fim1 != NULL)
 		ExisteL1 = true;
@@ -848,7 +911,7 @@ void TrocaLinha(MATRIZ_PTR *ListaMatriz, int Linha_1, int Linha_2){
 	while(temp != NULL && temp->i == Linha_2){
 		Fim2 = temp;
 		temp->i = Linha_1;
-		temp = temp->prox;	
+		temp = temp->prox;
 	}
 	if(Fim2 != NULL)
 		ExisteL2 = true;
@@ -858,7 +921,7 @@ void TrocaLinha(MATRIZ_PTR *ListaMatriz, int Linha_1, int Linha_2){
 		return;
 	if(!Elementos_Entre_L1eL2 && (!ExisteL1 || !ExisteL2))
 		return;
-	
+
 	MATRIZ_PTR Pos_Fim1 = NULL,    Pos_Fim2 = NULL;
 	MATRIZ_PTR Pos_Inicio1 = NULL, Pos_Inicio2 = NULL;
 
@@ -878,7 +941,7 @@ void TrocaLinha(MATRIZ_PTR *ListaMatriz, int Linha_1, int Linha_2){
 			Inicio1->prox = Pos_Inicio2;
 		else
 			*ListaMatriz = Pos_Inicio2;
-		
+
 		temp = Fim2->prox;
 		Fim2->prox = Pos_Inicio1;
 		Fim1->prox = temp;
@@ -901,14 +964,14 @@ void TrocaLinha(MATRIZ_PTR *ListaMatriz, int Linha_1, int Linha_2){
 		Inicio2->prox = Pos_Fim2;
 	}
 
-	
+
 	if(ExisteL2){
 		Fim2->prox = Pos_Fim1;
 		if(Elementos_Antes_L1)
 			Inicio1->prox = Pos_Inicio2;
 		else
 			*ListaMatriz = Pos_Inicio2;
-	} 
+	}
 	else{
 		if(Elementos_Antes_L1)
 			Inicio1->prox = Pos_Fim1;
